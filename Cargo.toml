@@ -151,6 +151,10 @@ path = "examples/learn/text.rs"
 name = "wgpu_surface"
 path = "examples/learn/wgpu_surface.rs"
 
+[[example]]
+name = "wgpu_surface_basic"
+path = "examples/learn/wgpu_surface_basic.rs"
+
 # ============================================================================
 # Bench Examples - Performance benchmarks
 # ============================================================================
