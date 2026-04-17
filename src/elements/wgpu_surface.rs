@@ -173,6 +173,18 @@ impl WgpuSurfaceHandle {
         // Return immediately - no blocking
     }
 
+    /// Silently swap the rendered buffer to the ready slot without triggering any
+    /// redraw request or setting `redraw_pending`.
+    ///
+    /// Use this when the GPUI draw cycle (via `window.request_animation_frame()`) drives
+    /// the compositor instead of the fast-blit path.  The compositor will pick up the
+    /// latest ready buffer the next time it paints the `WgpuSurface` element.
+    pub fn swap_buffers(&self) {
+        self.inner
+            .registry
+            .swap_rendering_ready_no_sync(self.inner.surface_id);
+    }
+
     /// Current size in device pixels.
     pub fn size(&self) -> (u32, u32) {
         *self.inner.size.lock().unwrap()

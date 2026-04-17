@@ -310,6 +310,8 @@ impl Render for SurfaceExample {
         while let Ok(fps) = self.fps_rx.try_recv() {
             self.display_fps = fps;
         }
+        // Keep the GPUI compositor running so it continuously picks up new
+        // triple-buffer frames from the render thread.
         window.request_animation_frame();
 
         div()
@@ -355,8 +357,11 @@ fn main() {
 
                 let mut last_report = std::time::Instant::now();
                 let mut frame_count: u32 = 0;
+                let target_frame_time = Duration::from_nanos(16_666_667); // ~60 fps
 
                 loop {
+                    let frame_start = std::time::Instant::now();
+
                     let (view, (dw, dh)) = match surface_thread.back_view_with_size() {
                         Some(tuple) => tuple,
                         None => break,
@@ -369,8 +374,10 @@ fn main() {
                     state.render(&view);
                     drop(view);
 
-                    #[allow(deprecated)]
-                    surface_thread.present();
+                    // Silently swap rendering→ready without triggering the fast-blit path.
+                    // The GPUI compositor (driven by request_animation_frame) will pick
+                    // up the ready buffer during its next full draw.
+                    surface_thread.swap_buffers();
 
                     frame_count = frame_count.wrapping_add(1);
                     let now = std::time::Instant::now();
@@ -378,6 +385,11 @@ fn main() {
                         let _ = fps_tx.send(frame_count as f64);
                         frame_count = 0;
                         last_report = now;
+                    }
+
+                    let elapsed = frame_start.elapsed();
+                    if elapsed < target_frame_time {
+                        thread::sleep(target_frame_time - elapsed);
                     }
                 }
             });
