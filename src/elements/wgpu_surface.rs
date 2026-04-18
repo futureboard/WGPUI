@@ -285,10 +285,6 @@ impl WgpuSurfaceHandle {
             });
         }
     }
-
-    pub fn is_resize_pending(&self) -> bool {
-        self.inner.is_resizing.load(Ordering::Acquire)
-    }
 }
 
 /// Create a `WgpuSurface` element from an existing handle.
