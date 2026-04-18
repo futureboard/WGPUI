@@ -231,6 +231,14 @@ impl WgpuSurfaceHandle {
         self.inner.deferred_resize.lock().unwrap().take()
     }
 
+    /// Drop any queued-but-not-yet-started pending resize so the background
+    /// realloc thread exits after its current operation without resizing to a
+    /// now-stale size. The surface stays at its current committed size and the
+    /// compositor keeps showing the stretched frame.
+    pub fn cancel_pending_resize(&self) {
+        *self.inner.pending_resize.lock().unwrap() = None;
+    }
+
     /// The `SurfaceId` for this handle (used internally by the element).
     pub(crate) fn id(&self) -> SurfaceId {
         self.inner.surface_id
@@ -399,6 +407,12 @@ impl Element for WgpuSurface {
 
         if pixel_w != cur_w || pixel_h != cur_h {
             if self.defer_resize_until_mouse_up && (left_pressed || window_resizing) {
+                // If a realloc was in flight from a previous flush, cancel the
+                // pending target so the bg thread exits without completing a
+                // now-stale resize. The compositor keeps showing the stretched frame.
+                if self.handle.inner.is_resizing.load(Ordering::Acquire) {
+                    self.handle.cancel_pending_resize();
+                }
                 self.handle.defer_resize(pixel_w, pixel_h);
             } else {
                 self.handle.request_resize(pixel_w, pixel_h);
