@@ -200,6 +200,14 @@ impl WgpuSurfaceHandle {
         self.inner.format
     }
 
+    /// Returns true if a resize is pending or currently in progress.
+    pub fn is_resize_pending(&self) -> bool {
+        if self.inner.is_resizing.load(Ordering::Acquire) {
+            return true;
+        }
+        self.inner.pending_resize.lock().unwrap().is_some()
+    }
+
     /// The `SurfaceId` for this handle (used internally by the element).
     pub(crate) fn id(&self) -> SurfaceId {
         self.inner.surface_id
