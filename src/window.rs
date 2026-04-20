@@ -1719,7 +1719,6 @@ impl Window {
 
     /// Close this window.
     pub fn remove_window(&mut self) {
-        eprintln!("[wgpui] Window::remove_window called");
         self.removed = true;
     }
 

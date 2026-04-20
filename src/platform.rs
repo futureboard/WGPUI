@@ -376,6 +376,12 @@ pub(crate) trait PlatformWindow: HasWindowHandle + HasDisplayHandle {
     fn completed_frame(&self) {}
     fn sprite_atlas(&self) -> Arc<dyn PlatformAtlas>;
 
+    /// Programmatically close the OS window. Called by GPUI when a window is
+    /// removed via `Window::remove_window()` (not triggered by the user clicking
+    /// the close button). Default is a no-op; platforms should override to actually
+    /// destroy the native window.
+    fn close_programmatically(&self) {}
+
     // macOS specific methods
     fn get_title(&self) -> String {
         String::new()
