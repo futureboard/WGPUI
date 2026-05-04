@@ -91,7 +91,7 @@ impl WgpuContext {
         let quads_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Quads Buffer"),
             // TODO(mdeand): Determine appropriate size
-            size: 1024 * 1024, // 1 MB buffer for quads, for now. (:
+            size: 8 * 1024 * 1024, // 1 MB buffer for quads, for now. (:
             usage: wgpu::BufferUsages::VERTEX
                 | wgpu::BufferUsages::COPY_DST
                 | wgpu::BufferUsages::STORAGE,
@@ -101,7 +101,7 @@ impl WgpuContext {
         let mono_sprites_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Monosprites Buffer"),
             // TODO(mdeand): Determine appropriate size, or make resizable.
-            size: 1024 * 1024,
+            size: 8 * 1024 * 1024,
             usage: wgpu::BufferUsages::VERTEX
                 | wgpu::BufferUsages::COPY_DST
                 | wgpu::BufferUsages::STORAGE,
@@ -110,7 +110,7 @@ impl WgpuContext {
 
         let shadows_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Shadows Buffer"),
-            size: 1024 * 1024,
+            size: 8 * 1024 * 1024,
             usage: wgpu::BufferUsages::VERTEX
                 | wgpu::BufferUsages::COPY_DST
                 | wgpu::BufferUsages::STORAGE,
@@ -119,7 +119,7 @@ impl WgpuContext {
 
         let underlines_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Underlines Buffer"),
-            size: 1024 * 1024,
+            size: 8 * 1024 * 1024,
             usage: wgpu::BufferUsages::VERTEX
                 | wgpu::BufferUsages::COPY_DST
                 | wgpu::BufferUsages::STORAGE,
@@ -128,7 +128,7 @@ impl WgpuContext {
 
         let poly_sprites_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Poly Sprites Buffer"),
-            size: 1024 * 1024,
+            size: 8 * 1024 * 1024,
             usage: wgpu::BufferUsages::VERTEX
                 | wgpu::BufferUsages::COPY_DST
                 | wgpu::BufferUsages::STORAGE,
@@ -137,7 +137,7 @@ impl WgpuContext {
         
             let paths_vertices_buffer = device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some("Path Vertices Buffer"),
-                size: 4 * 1024 * 1024, // 4 MB – ~87 k vertices @ 48 bytes each
+                size: 8 * 1024 * 1024, // 8 MB – ~174 k vertices @ 48 bytes each
                 usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
                 mapped_at_creation: false,
             });
