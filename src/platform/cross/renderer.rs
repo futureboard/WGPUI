@@ -1607,6 +1607,14 @@ impl WgpuRenderer {
         // If we skip the frame, bounds remain valid
         self.layout_version.fetch_add(1, Ordering::Release);
 
+        // Borrow buffers for bind group creation - these borrows must live until bind groups are done
+        let quads_buffer_ref = self.context.quads_buffer.borrow();
+        let shadows_buffer_ref = self.context.shadows_buffer.borrow();
+        let underlines_buffer_ref = self.context.underlines_buffer.borrow();
+        let mono_sprites_buffer_ref = self.context.mono_sprites_buffer.borrow();
+        let poly_sprites_buffer_ref = self.context.poly_sprites_buffer.borrow();
+        let paths_vertices_buffer_ref = self.context.paths_vertices_buffer.borrow();
+
         let quads_bind_group = self
             .context
             .device
@@ -1616,7 +1624,7 @@ impl WgpuRenderer {
                 entries: &[wgpu::BindGroupEntry {
                     binding: 0,
                     resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                        buffer: &self.context.quads_buffer,
+                        buffer: &quads_buffer_ref,
                         offset: 0,
                         size: None,
                     }),
@@ -1632,7 +1640,7 @@ impl WgpuRenderer {
                     entries: &[wgpu::BindGroupEntry {
                         binding: 0,
                         resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                            buffer: &self.context.shadows_buffer,
+                            buffer: &shadows_buffer_ref,
                             offset: 0,
                             size: None,
                         }),
@@ -1648,7 +1656,7 @@ impl WgpuRenderer {
                     entries: &[wgpu::BindGroupEntry {
                         binding: 0,
                         resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                            buffer: &self.context.underlines_buffer,
+                            buffer: &underlines_buffer_ref,
                             offset: 0,
                             size: None,
                         }),
@@ -1664,7 +1672,7 @@ impl WgpuRenderer {
                     entries: &[wgpu::BindGroupEntry {
                         binding: 0,
                         resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                            buffer: &self.context.mono_sprites_buffer,
+                            buffer: &mono_sprites_buffer_ref,
                             offset: 0,
                             size: None,
                         }),
@@ -1680,7 +1688,7 @@ impl WgpuRenderer {
                     entries: &[wgpu::BindGroupEntry {
                         binding: 0,
                         resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                            buffer: &self.context.poly_sprites_buffer,
+                            buffer: &poly_sprites_buffer_ref,
                             offset: 0,
                             size: None,
                         }),
@@ -1696,7 +1704,7 @@ impl WgpuRenderer {
                     entries: &[wgpu::BindGroupEntry {
                         binding: 0,
                         resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                            buffer: &self.context.paths_vertices_buffer,
+                            buffer: &paths_vertices_buffer_ref,
                             offset: 0,
                             size: None,
                         }),
