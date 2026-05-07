@@ -591,6 +591,8 @@ struct WgpuPipelines {
 
     quads_bind_group_layout: wgpu::BindGroupLayout,
     shadows_bind_group_layout: wgpu::BindGroupLayout,
+    backdrop_blurs_bind_group_layout: wgpu::BindGroupLayout,
+    backdrop_texture_bind_group_layout: wgpu::BindGroupLayout,
     underlines_bind_group_layout: wgpu::BindGroupLayout,
     sprites_bind_group_layout: wgpu::BindGroupLayout,
     mono_sprites_bind_group_layout: wgpu::BindGroupLayout,
@@ -603,6 +605,7 @@ struct WgpuPipelines {
 
     quads_pipeline: wgpu::RenderPipeline,
     shadows_pipeline: wgpu::RenderPipeline,
+    backdrop_blurs_pipeline: wgpu::RenderPipeline,
     underlines_pipeline: wgpu::RenderPipeline,
     mono_sprites_pipeline: wgpu::RenderPipeline,
     poly_sprites_pipeline: wgpu::RenderPipeline,
@@ -628,6 +631,13 @@ impl WgpuPipelines {
             .create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("shadows_shader"),
                 source: wgpu::ShaderSource::Wgsl(include_str!("shaders/shadows.wgsl").into()),
+            });
+
+        let backdrop_blur_shader = context
+            .device
+            .create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("backdrop_blur_shader"),
+                source: wgpu::ShaderSource::Wgsl(include_str!("shaders/backdrop_blur.wgsl").into()),
             });
 
         let underlines_shader = context
@@ -778,6 +788,61 @@ impl WgpuPipelines {
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("shadows_pipeline_layout"),
                     bind_group_layouts: &[Some(&globals_bind_group_layout), Some(&shadows_bind_group_layout)],
+                    immediate_size: 0,
+                });
+
+        let backdrop_blurs_bind_group_layout =
+            context
+                .device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some("backdrop_blurs_bind_group_layout"),
+                    entries: &[wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    }],
+                });
+
+        let backdrop_texture_bind_group_layout =
+            context
+                .device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some("backdrop_texture_bind_group_layout"),
+                    entries: &[
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 0,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Texture {
+                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                                view_dimension: wgpu::TextureViewDimension::D2,
+                                multisampled: false,
+                            },
+                            count: None,
+                        },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 1,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                            count: None,
+                        },
+                    ],
+                });
+
+        let backdrop_blurs_pipeline_layout =
+            context
+                .device
+                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label: Some("backdrop_blurs_pipeline_layout"),
+                    bind_group_layouts: &[
+                        Some(&globals_bind_group_layout),
+                        Some(&backdrop_blurs_bind_group_layout),
+                        Some(&backdrop_texture_bind_group_layout),
+                    ],
                     immediate_size: 0,
                 });
 
@@ -996,6 +1061,8 @@ impl WgpuPipelines {
 
             quads_bind_group_layout,
             shadows_bind_group_layout,
+            backdrop_blurs_bind_group_layout,
+            backdrop_texture_bind_group_layout,
             underlines_bind_group_layout,
             mono_sprites_bind_group_layout,
             sprites_bind_group_layout,
@@ -1051,6 +1118,33 @@ impl WgpuPipelines {
                     fragment: Some(wgpu::FragmentState {
                         module: &shadows_shader,
                         entry_point: Some("fs_shadow"),
+                        compilation_options: wgpu::PipelineCompilationOptions::default(),
+                        targets: color_targets,
+                    }),
+                    multiview_mask: None,
+                    cache: None,
+                },
+            ),
+
+            backdrop_blurs_pipeline: context.device.create_render_pipeline(
+                &wgpu::RenderPipelineDescriptor {
+                    label: Some("backdrop_blurs"),
+                    layout: Some(&backdrop_blurs_pipeline_layout),
+                    vertex: wgpu::VertexState {
+                        module: &backdrop_blur_shader,
+                        entry_point: Some("vs_backdrop_blur"),
+                        compilation_options: wgpu::PipelineCompilationOptions::default(),
+                        buffers: &[],
+                    },
+                    primitive: wgpu::PrimitiveState {
+                        topology: wgpu::PrimitiveTopology::TriangleStrip,
+                        ..Default::default()
+                    },
+                    depth_stencil: None,
+                    multisample: wgpu::MultisampleState::default(),
+                    fragment: Some(wgpu::FragmentState {
+                        module: &backdrop_blur_shader,
+                        entry_point: Some("fs_backdrop_blur"),
                         compilation_options: wgpu::PipelineCompilationOptions::default(),
                         targets: color_targets,
                     }),
@@ -1263,6 +1357,11 @@ pub struct WgpuRenderer {
     persistent_framebuffer: Option<wgpu::Texture>,
     persistent_framebuffer_view: Option<wgpu::TextureView>,
 
+    // Backdrop blur texture for capturing framebuffer content
+    backdrop_blur_texture: Option<wgpu::Texture>,
+    backdrop_blur_texture_view: Option<wgpu::TextureView>,
+    backdrop_blur_sampler: wgpu::Sampler,
+
     // Bounds cache for fast surface blitting without compositor
     surface_bounds_cache: Arc<Mutex<HashMap<SurfaceId, SurfaceBoundsEntry>>>,
 
@@ -1335,7 +1434,7 @@ impl WgpuRenderer {
             });
 
         let surface_configuration = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
             format,
             width,
             height,
@@ -1355,6 +1454,15 @@ impl WgpuRenderer {
 
         let surface_sampler = context.device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some("surface_sampler"),
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            ..Default::default()
+        });
+
+        let backdrop_blur_sampler = context.device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some("backdrop_blur_sampler"),
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
             ..Default::default()
@@ -1389,6 +1497,27 @@ impl WgpuRenderer {
         let persistent_framebuffer_view =
             persistent_framebuffer.create_view(&wgpu::TextureViewDescriptor::default());
 
+        // Create backdrop blur texture for capturing framebuffer content
+        let backdrop_blur_texture = context.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("backdrop_blur_texture"),
+            size: wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+
+        let backdrop_blur_texture_view =
+            backdrop_blur_texture.create_view(&wgpu::TextureViewDescriptor::default());
+
         Ok(Self {
             context: context.clone(),
             surface: ManuallyDrop::new(surface),
@@ -1396,12 +1525,15 @@ impl WgpuRenderer {
             atlas,
             atlas_sampler,
             surface_sampler,
+            backdrop_blur_sampler,
             surface_params_buffer,
             pipelines,
             rendering_parameters: RenderingParameters::from_env(),
             surface_bind_groups: Mutex::new(HashMap::new()),
             persistent_framebuffer: Some(persistent_framebuffer),
             persistent_framebuffer_view: Some(persistent_framebuffer_view),
+            backdrop_blur_texture: Some(backdrop_blur_texture),
+            backdrop_blur_texture_view: Some(backdrop_blur_texture_view),
             surface_bounds_cache: Arc::new(Mutex::new(HashMap::new())),
             layout_version: Arc::new(AtomicU64::new(0)),
         })
@@ -1491,6 +1623,19 @@ impl WgpuRenderer {
             self.context
                 .queue
                 .write_buffer(&self.context.shadows_buffer.lock().unwrap(), 0, data);
+        }
+        if !scene.backdrop_blurs.is_empty() {
+            let data = unsafe { as_bytes(&scene.backdrop_blurs) };
+            ensure_buffer_size(
+                &self.context.device,
+                &self.context.backdrop_blurs_buffer,
+                data.len() as u64,
+                "Backdrop Blurs Buffer",
+                wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            );
+            self.context
+                .queue
+                .write_buffer(&self.context.backdrop_blurs_buffer.lock().unwrap(), 0, data);
         }
         if !scene.underlines.is_empty() {
             let data = unsafe { as_bytes(&scene.underlines) };
@@ -1610,6 +1755,7 @@ impl WgpuRenderer {
         // Borrow buffers for bind group creation - these borrows must live until bind groups are done
         let quads_buffer_ref = self.context.quads_buffer.lock().unwrap();
         let shadows_buffer_ref = self.context.shadows_buffer.lock().unwrap();
+        let backdrop_blurs_buffer_ref = self.context.backdrop_blurs_buffer.lock().unwrap();
         let underlines_buffer_ref = self.context.underlines_buffer.lock().unwrap();
         let mono_sprites_buffer_ref = self.context.mono_sprites_buffer.lock().unwrap();
         let poly_sprites_buffer_ref = self.context.poly_sprites_buffer.lock().unwrap();
@@ -1645,6 +1791,42 @@ impl WgpuRenderer {
                             size: None,
                         }),
                     }],
+                });
+
+        let backdrop_blurs_bind_group =
+            self.context
+                .device
+                .create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some("backdrop_blurs_bind_group"),
+                    layout: &self.pipelines.backdrop_blurs_bind_group_layout,
+                    entries: &[wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                            buffer: &backdrop_blurs_buffer_ref,
+                            offset: 0,
+                            size: None,
+                        }),
+                    }],
+                });
+
+        let backdrop_texture_bind_group =
+            self.context
+                .device
+                .create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some("backdrop_texture_bind_group"),
+                    layout: &self.pipelines.backdrop_texture_bind_group_layout,
+                    entries: &[
+                        wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: wgpu::BindingResource::TextureView(
+                                self.backdrop_blur_texture_view.as_ref().unwrap()
+                            ),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 1,
+                            resource: wgpu::BindingResource::Sampler(&self.backdrop_blur_sampler),
+                        },
+                    ],
                 });
 
         let underlines_bind_group =
@@ -1734,6 +1916,7 @@ impl WgpuRenderer {
 
             let mut quads_first_instance: u32 = 0;
             let mut shadows_first_instance: u32 = 0;
+            let mut backdrop_blurs_first_instance: u32 = 0;
             let mut underlines_first_instance: u32 = 0;
             let mut mono_sprites_first_instance: u32 = 0;
             let mut poly_sprites_first_instance: u32 = 0;
@@ -1836,6 +2019,55 @@ impl WgpuRenderer {
                         pass.set_bind_group(1, &shadows_bind_group, &[]);
                         pass.draw(0..4, shadows_first_instance..shadows_first_instance + count);
                         shadows_first_instance += count;
+                    }
+                    PrimitiveBatch::BackdropBlurs(backdrop_blurs) => {
+                        let count = backdrop_blurs.len() as u32;
+
+                        // End the current render pass to copy texture
+                        drop(pass);
+
+                        // Copy surface texture to backdrop_blur_texture for sampling
+                        if let Some(ref blur_texture) = self.backdrop_blur_texture {
+                            let surface_size = wgpu::Extent3d {
+                                width: self.surface_configuration.width,
+                                height: self.surface_configuration.height,
+                                depth_or_array_layers: 1,
+                            };
+
+                            command_encoder.copy_texture_to_texture(
+                                surface_texture.texture.as_image_copy(),
+                                blur_texture.as_image_copy(),
+                                surface_size,
+                            );
+                        }
+
+                        // Begin new render pass with Load to preserve existing content
+                        pass = command_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                            label: Some("main_resumed"),
+                            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                                view: &surface_texture
+                                    .texture
+                                    .create_view(&wgpu::TextureViewDescriptor::default()),
+                                ops: wgpu::Operations {
+                                    load: wgpu::LoadOp::Load,
+                                    store: wgpu::StoreOp::Store,
+                                },
+                                resolve_target: None,
+                                depth_slice: None,
+                            })],
+                            depth_stencil_attachment: None,
+                            timestamp_writes: None,
+                            occlusion_query_set: None,
+                            multiview_mask: None,
+                        });
+
+                        // Now render the backdrop blur quads
+                        pass.set_pipeline(&self.pipelines.backdrop_blurs_pipeline);
+                        pass.set_bind_group(0, &self.pipelines.globals_bind_group, &[]);
+                        pass.set_bind_group(1, &backdrop_blurs_bind_group, &[]);
+                        pass.set_bind_group(2, &backdrop_texture_bind_group, &[]);
+                        pass.draw(0..4, backdrop_blurs_first_instance..backdrop_blurs_first_instance + count);
+                        backdrop_blurs_first_instance += count;
                     }
                     PrimitiveBatch::Underlines(underlines) => {
                         let count = underlines.len() as u32;

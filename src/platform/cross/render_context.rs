@@ -11,6 +11,7 @@ pub struct WgpuContext {
     pub(super) globals_buffer: wgpu::Buffer,
     pub(super) quads_buffer: Mutex<wgpu::Buffer>,
     pub(super) shadows_buffer: Mutex<wgpu::Buffer>,
+    pub(super) backdrop_blurs_buffer: Mutex<wgpu::Buffer>,
     pub(super) underlines_buffer: Mutex<wgpu::Buffer>,
     pub(super) mono_sprites_buffer: Mutex<wgpu::Buffer>,
     pub(super) poly_sprites_buffer: Mutex<wgpu::Buffer>,
@@ -121,6 +122,15 @@ impl WgpuContext {
             mapped_at_creation: false,
         });
 
+        let backdrop_blurs_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Backdrop Blurs Buffer"),
+            size: 8 * 1024 * 1024,
+            usage: wgpu::BufferUsages::VERTEX
+                | wgpu::BufferUsages::COPY_DST
+                | wgpu::BufferUsages::STORAGE,
+            mapped_at_creation: false,
+        });
+
         let underlines_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Underlines Buffer"),
             size: 8 * 1024 * 1024,
@@ -164,6 +174,7 @@ impl WgpuContext {
             globals_buffer,
             quads_buffer: Mutex::new(quads_buffer),
             shadows_buffer: Mutex::new(shadows_buffer),
+            backdrop_blurs_buffer: Mutex::new(backdrop_blurs_buffer),
             underlines_buffer: Mutex::new(underlines_buffer),
             mono_sprites_buffer: Mutex::new(mono_sprites_buffer),
             poly_sprites_buffer: Mutex::new(poly_sprites_buffer),

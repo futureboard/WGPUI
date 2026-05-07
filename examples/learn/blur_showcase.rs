@@ -1,6 +1,6 @@
-//! Element Blur Showcase
+//! Backdrop Blur Showcase
 //!
-//! Demonstrates element-level `blur(...)` used alongside `opacity(...)`.
+//! Demonstrates backdrop blur (frosted glass effect) using `backdrop_blur(...)` alongside `opacity(...)`.
 //! Run with:
 //!   cargo run --example blur_showcase
 
@@ -44,7 +44,7 @@ fn blur_card(
         .rounded_lg()
         .bg(rgb(0x2a2a2a))
         .opacity(opacity)
-        .blur(blur_radius)
+        .backdrop_blur(blur_radius)
         .border_1()
         .border_color(rgb(0x444444))
         .child(div().text_sm().font_weight(gpui::FontWeight::BOLD).child(title))
@@ -80,11 +80,11 @@ fn demo_row(
                         .p_4()
                         .child(blur_card(
                             "blur-card",
-                            "Frosted Element",
-                            "Element-level blur + opacity",
+                            "Frosted Glass",
+                            "Backdrop blur + opacity",
                             blur_radius,
                             opacity,
-                        ).w_full()),
+                        )).w_full(),
                 ),
         )
 }
@@ -99,34 +99,34 @@ impl Render for BlurShowcase {
             .flex_col()
             .gap_5()
             .bg(rgb(0x1e1e1e))
-            .child(div().text_lg().font_weight(gpui::FontWeight::BOLD).child("Element Blur Showcase"))
+            .child(div().text_lg().font_weight(gpui::FontWeight::BOLD).child("Backdrop Blur Showcase"))
             .child(
                 div()
                     .text_sm()
                     .text_color(rgb(0x999999))
-                    .child("Compare rows: blur radius increases while opacity stays semi-transparent."),
+                    .child("Compare rows: backdrop blur radius increases while opacity stays semi-transparent."),
             )
             .child(demo_row(
                 "row-none",
-                "blur(0.0), opacity(0.82)",
+                "backdrop_blur(0.0), opacity(0.82)",
                 0.0,
                 0.82,
             ))
             .child(demo_row(
                 "row-soft",
-                "blur(6.0), opacity(0.82)",
+                "backdrop_blur(6.0), opacity(0.82)",
                 6.0,
                 0.82,
             ))
             .child(demo_row(
                 "row-medium",
-                "blur(12.0), opacity(0.82)",
+                "backdrop_blur(12.0), opacity(0.82)",
                 12.0,
                 0.82,
             ))
             .child(demo_row(
                 "row-strong",
-                "blur(18.0), opacity(0.82)",
+                "backdrop_blur(18.0), opacity(0.82)",
                 18.0,
                 0.82,
             ))

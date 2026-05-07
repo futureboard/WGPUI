@@ -264,6 +264,9 @@ pub struct Style {
     /// A fast, frosted blur radius for this element and its children.
     pub blur: Option<f32>,
 
+    /// Backdrop blur radius - blurs content BEHIND this element (CSS backdrop-filter: blur())
+    pub backdrop_blur: Option<f32>,
+
     /// The grid columns of this element
     /// Equivalent to the Tailwind `grid-cols-<number>`
     pub grid_cols: Option<u16>,
@@ -665,14 +668,30 @@ impl Style {
                 None => Hsla::default(),
             };
             border_color.a = 0.;
-            window.paint_quad(quad(
-                bounds,
-                corner_radii,
-                background_color.unwrap_or_default(),
-                Edges::default(),
-                border_color,
-                self.border_style,
-            ));
+
+            // Use backdrop blur if specified, otherwise regular quad
+            if let Some(backdrop_blur_radius) = self.backdrop_blur {
+                window.paint_backdrop_blur_quad(
+                    quad(
+                        bounds,
+                        corner_radii,
+                        background_color.unwrap_or_default(),
+                        Edges::default(),
+                        border_color,
+                        self.border_style,
+                    ),
+                    Pixels(backdrop_blur_radius),
+                );
+            } else {
+                window.paint_quad(quad(
+                    bounds,
+                    corner_radii,
+                    background_color.unwrap_or_default(),
+                    Edges::default(),
+                    border_color,
+                    self.border_style,
+                ));
+            }
         }
 
         continuation(window, cx);
@@ -794,6 +813,7 @@ impl Default for Style {
             mouse_cursor: None,
             opacity: None,
             blur: None,
+            backdrop_blur: None,
             grid_rows: None,
             grid_cols: None,
             grid_location: None,

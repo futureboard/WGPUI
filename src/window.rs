@@ -3287,6 +3287,28 @@ impl Window {
         });
     }
 
+    /// Paint a backdrop blur quad into the scene for the next frame at the current z-index.
+    /// This blurs the content behind the element (like CSS backdrop-filter: blur()).
+    ///
+    /// This method should only be called as part of the paint phase of element drawing.
+    pub fn paint_backdrop_blur_quad(&mut self, quad: PaintQuad, blur_radius: Pixels) {
+        self.invalidator.debug_assert_paint();
+
+        let scale_factor = self.scale_factor();
+        let content_mask = self.content_mask();
+        let opacity = self.element_opacity();
+        self.next_frame.scene.insert_primitive(crate::BackdropBlur {
+            order: 0,
+            blur_radius: blur_radius.scale(scale_factor),
+            bounds: quad.bounds.scale(scale_factor),
+            content_mask: content_mask.scale(scale_factor),
+            corner_radii: quad.corner_radii.scale(scale_factor),
+            background: quad.background.opacity(opacity),
+            border_color: quad.border_color.opacity(opacity),
+            border_widths: quad.border_widths.scale(scale_factor),
+        });
+    }
+
     /// Paint the given `Path` into the scene for the next frame at the current z-index.
     ///
     /// This method should only be called as part of the paint phase of element drawing.
