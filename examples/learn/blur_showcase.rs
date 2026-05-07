@@ -77,13 +77,14 @@ fn demo_row(
                         .flex()
                         .items_center()
                         .justify_center()
+                        .p_4()
                         .child(blur_card(
                             "blur-card",
                             "Frosted Element",
                             "Element-level blur + opacity",
                             blur_radius,
                             opacity,
-                        )),
+                        ).w_full()),
                 ),
         )
 }
