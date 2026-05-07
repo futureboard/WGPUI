@@ -1752,6 +1752,25 @@ impl WgpuRenderer {
         // If we skip the frame, bounds remain valid
         self.layout_version.fetch_add(1, Ordering::Release);
 
+        // Update globals with actual surface texture size for accurate UV coordinates
+        let actual_surface_size = surface_texture.texture.size();
+        let globals_corrected = GlobalParams {
+            viewport_size: [
+                actual_surface_size.width as f32,
+                actual_surface_size.height as f32,
+            ],
+            premultimated_alpha: match self.surface_configuration.alpha_mode {
+                wgpu::CompositeAlphaMode::PreMultiplied => 1,
+                _ => 0,
+            },
+            pad: 0,
+        };
+        self.context.queue.write_buffer(
+            &self.context.globals_buffer,
+            0,
+            bytemuck::bytes_of(&globals_corrected),
+        );
+
         // Borrow buffers for bind group creation - these borrows must live until bind groups are done
         let quads_buffer_ref = self.context.quads_buffer.lock().unwrap();
         let shadows_buffer_ref = self.context.shadows_buffer.lock().unwrap();
