@@ -2500,6 +2500,32 @@ impl WgpuRenderer {
         self.persistent_framebuffer = Some(persistent_framebuffer);
         self.persistent_framebuffer_view = Some(persistent_framebuffer_view);
 
+        // Recreate backdrop blur capture texture at the new size so that
+        // copy_texture_to_texture doesn't silently skip due to a size mismatch.
+        let backdrop_blur_texture =
+            self.context
+                .device
+                .create_texture(&wgpu::TextureDescriptor {
+                    label: Some("backdrop_blur_texture"),
+                    size: wgpu::Extent3d {
+                        width: self.surface_configuration.width,
+                        height: self.surface_configuration.height,
+                        depth_or_array_layers: 1,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: self.surface_configuration.format,
+                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                        | wgpu::TextureUsages::TEXTURE_BINDING
+                        | wgpu::TextureUsages::COPY_DST,
+                    view_formats: &[],
+                });
+        let backdrop_blur_texture_view =
+            backdrop_blur_texture.create_view(&wgpu::TextureViewDescriptor::default());
+        self.backdrop_blur_texture = Some(backdrop_blur_texture);
+        self.backdrop_blur_texture_view = Some(backdrop_blur_texture_view);
+
         // Invalidate bounds cache - all surface bounds are now stale
         self.layout_version.fetch_add(1, Ordering::Release);
         self.surface_bounds_cache.lock().unwrap().clear();
