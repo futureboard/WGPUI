@@ -277,37 +277,46 @@ impl PlatformWindow for CrossWindow {
     fn set_background_appearance(&self, background_appearance: WindowBackgroundAppearance) {
         let window = self.window();
 
-        match background_appearance {
+        let transparent = match background_appearance {
             WindowBackgroundAppearance::Opaque => {
                 window.set_transparent(false);
                 window.set_blur(false);
                 #[cfg(target_os = "windows")]
                 window.set_system_backdrop(BackdropType::None);
+                false
             }
             WindowBackgroundAppearance::Transparent => {
                 window.set_transparent(true);
                 window.set_blur(false);
                 #[cfg(target_os = "windows")]
                 window.set_system_backdrop(BackdropType::None);
+                true
             }
             WindowBackgroundAppearance::Blurred => {
                 window.set_transparent(true);
                 window.set_blur(true);
                 #[cfg(target_os = "windows")]
                 window.set_system_backdrop(BackdropType::TransientWindow);
+                true
             }
             WindowBackgroundAppearance::MicaBackdrop => {
                 window.set_transparent(true);
                 window.set_blur(false);
                 #[cfg(target_os = "windows")]
                 window.set_system_backdrop(BackdropType::MainWindow);
+                true
             }
             WindowBackgroundAppearance::MicaAltBackdrop => {
                 window.set_transparent(true);
                 window.set_blur(false);
                 #[cfg(target_os = "windows")]
                 window.set_system_backdrop(BackdropType::TabbedWindow);
+                true
             }
+        };
+
+        if let Some(renderer) = self.0.renderer.get() {
+            renderer.borrow_mut().update_transparency(transparent);
         }
     }
 
