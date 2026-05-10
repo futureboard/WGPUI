@@ -775,7 +775,7 @@ pub fn linear_gradient(
     }
 }
 
-/// A color stop in a linear gradient.
+/// A color stop for a gradient.
 ///
 /// <https://developer.mozilla.org/en-US/docs/Web/CSS/gradient/linear-gradient#linear-color-stop>
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -785,6 +785,27 @@ pub struct GradientStop {
     pub color: Hsla,
     /// The percentage of the gradient, in the range 0.0 to 1.0.
     pub percentage: f32,
+}
+
+/// Generic parameters for procedural gradients.
+/// The interpretation of the parameters depends on the gradient type.
+///
+/// Current conventions:
+///
+/// Linear gradients:
+/// - data[0]: angle in degrees
+///
+/// Radial gradients:
+/// - data[0]: center x, normalized to [-1.0, 1.0]
+/// - data[1]: center y, normalized to [-1.0, 1.0]
+/// - data[2]: radius x
+/// - data[3]: radius y
+///
+/// Additional gradient types may interpret these values differently.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct GradientParams {
+    pub data: [f32; 4],
 }
 
 /// Creates a new linear color stop.
