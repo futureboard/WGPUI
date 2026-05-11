@@ -104,7 +104,7 @@ impl color::Background {
                 format: wgpu::VertexFormat::Uint32,
             },
             wgpu::VertexAttribute {
-                offset: std::mem::offset_of!(color::Background, gradient_params)
+                offset: std::mem::offset_of!(color::Background, gradient_angle_or_pattern_height)
                     as wgpu::BufferAddress,
                 shader_location: 3,
                 format: wgpu::VertexFormat::Float32,
