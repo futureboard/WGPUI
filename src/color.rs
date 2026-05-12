@@ -859,10 +859,10 @@ pub struct GradientParams {
     pub params: [f32; 4],
 }
 
-/// Creates a new linear color stop.
+/// Creates a new gradient color stop.
 ///
 /// The position of the gradient, in the range 0.0 to 1.0.
-pub fn linear_color_stop(color: impl Into<Hsla>, position: f32) -> GradientStop {
+pub fn gradient_color_stop(color: impl Into<Hsla>, position: f32) -> GradientStop {
     GradientStop {
         color: color.into(),
         position,
@@ -993,8 +993,8 @@ mod tests {
 
     #[test]
     fn test_background_linear_gradient() {
-        let from = linear_color_stop(rgba(0xff0099ff), 0.0);
-        let to = linear_color_stop(rgba(0x00ff99ff), 1.0);
+        let from = gradient_color_stop(rgba(0xff0099ff), 0.0);
+        let to = gradient_color_stop(rgba(0x00ff99ff), 1.0);
         let background = linear_gradient(90.0, from, to);
         assert_eq!(background.tag, BackgroundTag::LinearGradient);
         assert_eq!(background.colors[0], from);
