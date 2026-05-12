@@ -203,7 +203,7 @@ impl Render for GradientViewer {
                         .color_space(color_space)),
                     ),
             )
-            .child(div().h_24().child(canvas(
+            .child(div().h_16().child(canvas(
                 move |_, _, _| {},
                 move |bounds, _, window, _| {
                     let size = size(bounds.size.width * 0.8, px(80.));
@@ -216,7 +216,7 @@ impl Render for GradientViewer {
                     };
                     let height = square_bounds.size.height;
                     let horizontal_offset = height;
-                    let vertical_offset = px(30.);
+                    let vertical_offset = px(0.);
                     let mut builder = gpui::PathBuilder::fill();
                     builder.move_to(square_bounds.bottom_left());
                     builder
