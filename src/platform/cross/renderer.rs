@@ -1394,12 +1394,6 @@ pub struct WgpuRenderer {
 
     // Layout version counter (incremented when compositor runs)
     layout_version: Arc<AtomicU64>,
-
-    // Alpha modes supported by this surface (queried once at creation)
-    supported_alpha_modes: Vec<wgpu::CompositeAlphaMode>,
-
-    // Whether the window is currently transparent (used for clear color, independent of alpha_mode)
-    transparent: bool,
 }
 
 impl WgpuRenderer {
@@ -1569,8 +1563,6 @@ impl WgpuRenderer {
             backdrop_blur_texture_view: Some(backdrop_blur_texture_view),
             surface_bounds_cache: Arc::new(Mutex::new(HashMap::new())),
             layout_version: Arc::new(AtomicU64::new(0)),
-            supported_alpha_modes: surface_capabilities.alpha_modes,
-            transparent: !cfg!(target_os = "linux"),
         })
     }
 
@@ -1805,25 +1797,6 @@ impl WgpuRenderer {
         // If we skip the frame, bounds remain valid
         self.layout_version.fetch_add(1, Ordering::Release);
 
-        // Update globals with actual surface texture size for accurate UV coordinates
-        let actual_surface_size = surface_texture.texture.size();
-        let globals_corrected = GlobalParams {
-            viewport_size: [
-                actual_surface_size.width as f32,
-                actual_surface_size.height as f32,
-            ],
-            premultimated_alpha: match self.surface_configuration.alpha_mode {
-                wgpu::CompositeAlphaMode::PreMultiplied => 1,
-                _ => 0,
-            },
-            pad: 0,
-        };
-        self.context.queue.write_buffer(
-            &self.context.globals_buffer,
-            0,
-            bytemuck::bytes_of(&globals_corrected),
-        );
-
         // Borrow buffers for bind group creation - these borrows must live until bind groups are done
         let quads_buffer_ref = self.context.quads_buffer.lock().unwrap();
         let shadows_buffer_ref = self.context.shadows_buffer.lock().unwrap();
@@ -1966,17 +1939,6 @@ impl WgpuRenderer {
             });
 
         {
-            let clear_color = if self.transparent {
-                wgpu::Color {
-                    r: 0.0,
-                    g: 0.0,
-                    b: 0.0,
-                    a: 0.0,
-                }
-            } else {
-                wgpu::Color::BLACK
-            };
-
             // Render to swapchain directly for now (TODO: render to framebuffer, then blit)
             let mut pass = command_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("main"),
@@ -1985,7 +1947,7 @@ impl WgpuRenderer {
                         .texture
                         .create_view(&wgpu::TextureViewDescriptor::default()),
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(clear_color),
+                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
                         store: wgpu::StoreOp::Store,
                     },
                     resolve_target: None,
@@ -2602,37 +2564,12 @@ impl WgpuRenderer {
     }
 
     pub fn update_transparency(&mut self, transparent: bool) {
-        // Track transparency for the clear color (works on all platforms including
-        // Windows where DWM handles blending and the surface alpha_mode stays Opaque).
-        self.transparent = transparent;
-
         self.surface_configuration.alpha_mode = if transparent {
-            // Pick the best transparent alpha mode the surface supports.
-            if self
-                .supported_alpha_modes
-                .contains(&wgpu::CompositeAlphaMode::PreMultiplied)
-            {
-                wgpu::CompositeAlphaMode::PreMultiplied
-            } else if self
-                .supported_alpha_modes
-                .contains(&wgpu::CompositeAlphaMode::PostMultiplied)
-            {
-                wgpu::CompositeAlphaMode::PostMultiplied
-            } else {
-                // Surface doesn't natively support transparency (e.g. Windows DX12).
-                // Keep whatever mode was set; the OS compositor will handle alpha
-                // as long as the window was created with with_transparent(true).
-                self.surface_configuration.alpha_mode
-            }
+            wgpu::CompositeAlphaMode::PreMultiplied
         } else {
-            if self
-                .supported_alpha_modes
-                .contains(&wgpu::CompositeAlphaMode::Opaque)
-            {
-                wgpu::CompositeAlphaMode::Opaque
-            } else {
-                self.supported_alpha_modes[0]
-            }
+            // TODO(mdeand): Support for non-X11?
+            // wgpu::CompositeAlphaMode::Opaque
+            wgpu::CompositeAlphaMode::Inherit
         };
         self.surface
             .configure(&self.context.device, &self.surface_configuration);

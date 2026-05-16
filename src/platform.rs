@@ -357,11 +357,6 @@ pub(crate) trait PlatformWindow: HasWindowHandle + HasDisplayHandle {
     fn is_hovered(&self) -> bool;
     fn set_title(&mut self, title: &str);
     fn set_background_appearance(&self, background_appearance: WindowBackgroundAppearance);
-    /// Keeps the window transparent even when it loses OS focus.
-    /// On platforms where inactive windows get an opaque fallback (e.g. Windows
-    /// Acrylic), setting this re-asserts the transparent clear colour on every
-    /// focus-lost event.
-    fn set_always_transparent(&self, value: bool);
     fn minimize(&self);
     fn zoom(&self);
     fn toggle_fullscreen(&self);
@@ -1090,11 +1085,6 @@ pub struct WindowOptions {
     /// On macOS this sets the application Dock icon for the process lifetime.
     /// Supply `None` to use the platform default.
     pub app_icon: Option<WindowIcon>,
-
-    /// When `true` the window preserves its transparent/blurred appearance even
-    /// when it loses OS focus. By default (false) the OS may render an opaque
-    /// or tinted fallback for inactive windows (e.g. Windows Acrylic).
-    pub always_transparent: bool,
 }
 
 /// A window or application icon expressed as raw RGBA pixels.
@@ -1154,13 +1144,10 @@ pub(crate) struct WindowParams {
 
     pub display_id: Option<DisplayId>,
 
-    pub window_background: WindowBackgroundAppearance,
-
     pub window_min_size: Option<Size<Pixels>>,
     pub tabbing_identifier: Option<String>,
     pub window_decorations: Option<WindowDecorations>,
     pub app_icon: Option<WindowIcon>,
-    pub always_transparent: bool,
 }
 
 /// Represents the status of how a window should be opened.
@@ -1220,7 +1207,6 @@ impl Default for WindowOptions {
             window_decorations: None,
             tabbing_identifier: None,
             app_icon: None,
-            always_transparent: !cfg!(target_os = "linux"),
         }
     }
 }

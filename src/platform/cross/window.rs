@@ -40,13 +40,6 @@ pub(crate) struct CrossWindowState {
     pub(crate) capslock: Cell<Capslock>,
     pub(crate) is_hovered: Cell<bool>,
     pub(crate) resize_detector: ResizeDetector,
-    /// When true, transparency is re-asserted on every focus-lost event so
-    /// that OS-level fallbacks (e.g. Windows Acrylic going opaque) are
-    /// overridden.
-    pub(crate) always_transparent: Cell<bool>,
-    /// Last applied background appearance, used to re-assert the full
-    /// backdrop (including system blur) when focus is lost.
-    pub(crate) background_appearance: Cell<WindowBackgroundAppearance>,
 }
 
 #[derive(Default)]
@@ -282,59 +275,38 @@ impl PlatformWindow for CrossWindow {
     }
 
     fn set_background_appearance(&self, background_appearance: WindowBackgroundAppearance) {
-        self.0.state.background_appearance.set(background_appearance);
         let window = self.window();
 
-        let transparent = match background_appearance {
+        match background_appearance {
             WindowBackgroundAppearance::Opaque => {
                 window.set_transparent(false);
                 window.set_blur(false);
                 #[cfg(target_os = "windows")]
                 window.set_system_backdrop(BackdropType::None);
-                false
             }
             WindowBackgroundAppearance::Transparent => {
                 window.set_transparent(true);
                 window.set_blur(false);
                 #[cfg(target_os = "windows")]
                 window.set_system_backdrop(BackdropType::None);
-                true
             }
             WindowBackgroundAppearance::Blurred => {
                 window.set_transparent(true);
                 window.set_blur(true);
                 #[cfg(target_os = "windows")]
                 window.set_system_backdrop(BackdropType::TransientWindow);
-                true
             }
             WindowBackgroundAppearance::MicaBackdrop => {
                 window.set_transparent(true);
                 window.set_blur(false);
                 #[cfg(target_os = "windows")]
                 window.set_system_backdrop(BackdropType::MainWindow);
-                true
             }
             WindowBackgroundAppearance::MicaAltBackdrop => {
                 window.set_transparent(true);
                 window.set_blur(false);
                 #[cfg(target_os = "windows")]
                 window.set_system_backdrop(BackdropType::TabbedWindow);
-                true
-            }
-        };
-
-        if let Some(renderer) = self.0.renderer.get() {
-            renderer.borrow_mut().update_transparency(transparent);
-        }
-    }
-
-    fn set_always_transparent(&self, value: bool) {
-        self.0.state.always_transparent.set(value);
-        // If enabling and we already have a renderer, assert transparency now
-        // in case the window is currently inactive.
-        if value {
-            if let Some(renderer) = self.0.renderer.get() {
-                renderer.borrow_mut().update_transparency(true);
             }
         }
     }

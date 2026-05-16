@@ -202,11 +202,6 @@ impl Platform for CrossPlatform {
                 options.window_decorations,
                 Some(crate::WindowDecorations::Client)
             );
-            let transparent = !matches!(
-                options.window_background,
-                crate::WindowBackgroundAppearance::Opaque
-            );
-            let force_transparent = !cfg!(target_os = "linux");
             let mut attributes = winit::window::Window::default_attributes()
                 .with_title(
                     options
@@ -217,7 +212,6 @@ impl Platform for CrossPlatform {
                         .unwrap_or_else(|| "GPUI".into()),
                 )
                 .with_decorations(!use_client_decorations)
-                .with_transparent(force_transparent || transparent)
                 .with_resizable(options.is_resizable)
                 .with_inner_size(winit::dpi::LogicalSize::new(
                     bounds.size.width.0 as f64,
@@ -269,7 +263,6 @@ impl Platform for CrossPlatform {
 
             window.initialize(winit_window);
             app_state.windows.insert(window_id, window.clone());
-            window.0.state.always_transparent.set(options.always_transparent);
             window.window().request_redraw();
         })
         .is_some();
@@ -738,14 +731,6 @@ impl winit::application::ApplicationHandler<CrossEvent> for AppState {
             }
 
             winit::event::WindowEvent::Focused(active) => {
-                // If always_transparent is set, re-assert the full background
-                // appearance (including system backdrop / blur) on both focus-gain
-                // and focus-loss, so OS fallbacks (e.g. Windows Acrylic going
-                // opaque when unfocused) are always overridden.
-                if window.0.state.always_transparent.get() {
-                    let appearance = window.0.state.background_appearance.get();
-                    window.set_background_appearance(appearance);
-                }
                 window
                     .0
                     .state
