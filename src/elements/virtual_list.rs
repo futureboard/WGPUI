@@ -1,10 +1,10 @@
-use std::{cell::RefCell, cmp, ops::Range, rc::Rc};
-
+use crate::elements::smooth_scroll::SmoothScrollState;
 use gpui::{
     AnyElement, App, Bounds, ContentMask, Context, Div, Element, ElementId, Entity,
     GlobalElementId, Hitbox, InteractiveElement, IntoElement, Pixels, Render, ScrollHandle, Size,
     Stateful, StatefulInteractiveElement, Styled, Window, div, point, px, size,
 };
+use std::{cell::RefCell, cmp, ops::Range, rc::Rc};
 
 use smallvec::SmallVec;
 
@@ -15,17 +15,34 @@ pub struct DeferredScroll {
     pub item_index: usize,
 }
 
-/// A controller used to issue scroll commands to a [`VirtualList`].
+/// Shared scroll and animation state for a [`VirtualList`].
+#[derive(Debug, Default)]
+pub struct VirtualListScrollState {
+    /// Deferred scroll request consumed during prepaint.
+    pub deferred_scroll: Option<DeferredScroll>,
+
+    /// Smooth scrolling animation state.
+    pub smooth_scroll: SmoothScrollState,
+}
+
+/// Controller for programmatically scrolling a [`VirtualList`].
 #[derive(Clone)]
 pub struct VirtualListScrollController {
-    /// Shared deferred scroll state consumed during prepaint.
-    pub deferred: Rc<RefCell<Option<DeferredScroll>>>,
+    /// Shared scroll state.
+    pub state: Rc<RefCell<VirtualListScrollState>>,
 }
 
 impl VirtualListScrollController {
+    /// Creates a new virtual list scroll controller.
+    pub fn new() -> Self {
+        Self {
+            state: Rc::new(RefCell::new(VirtualListScrollState::default())),
+        }
+    }
+
     /// Scrolls the list so the specified item becomes visible.
     pub fn scroll_to_item(&self, item_index: usize) {
-        *self.deferred.borrow_mut() = Some(DeferredScroll { item_index });
+        self.state.borrow_mut().deferred_scroll = Some(DeferredScroll { item_index });
     }
 }
 
@@ -43,7 +60,7 @@ pub struct VirtualList {
     offsets: Vec<Pixels>,
     content_height: Pixels,
 
-    deferred_scroll: Rc<RefCell<Option<DeferredScroll>>>,
+    scroll_state: Rc<RefCell<VirtualListScrollState>>,
 
     render: Box<
         dyn for<'a> Fn(Range<usize>, &'a mut Window, &'a mut App) -> SmallVec<[AnyElement; 32]>,
@@ -101,7 +118,7 @@ where
         heights,
         offsets,
         content_height: sum,
-        deferred_scroll: controller.deferred.clone(),
+        scroll_state: controller.state.clone(),
         render: Box::new(render),
         overscan: 16,
     }
@@ -109,7 +126,9 @@ where
 
 impl VirtualList {
     fn find_index(&self, pos: Pixels) -> usize {
-        self.offsets.partition_point(|&o| o < pos)
+        self.offsets
+            .partition_point(|&o| o <= pos)
+            .saturating_sub(1)
     }
 }
 
@@ -173,9 +192,9 @@ impl Element for VirtualList {
     ) -> Self::PrepaintState {
         let viewport_height = bounds.size.height;
 
-        let mut scroll = self.scroll_handle.offset().y;
+        let mut logical_scroll = self.scroll_handle.offset().y;
 
-        if let Some(deferred) = self.deferred_scroll.borrow_mut().take() {
+        if let Some(deferred) = self.scroll_state.borrow_mut().deferred_scroll.take() {
             let target = deferred.item_index;
 
             if target < self.offsets.len() {
@@ -187,13 +206,32 @@ impl Element for VirtualList {
 
                 self.scroll_handle.set_offset(point(px(0.0), new_scroll));
 
-                scroll = new_scroll;
+                logical_scroll = new_scroll;
             }
         }
 
-        let mut start = self.find_index(-scroll);
+        let max_scroll = (self.content_height - viewport_height).max(px(0.0));
 
-        let mut end = self.find_index(-scroll + viewport_height);
+        logical_scroll = logical_scroll.clamp(-max_scroll, px(0.0));
+
+        self.scroll_handle
+            .set_offset(point(px(0.0), logical_scroll));
+
+        let visual_scroll = {
+            let mut state = self.scroll_state.borrow_mut();
+
+            state.smooth_scroll.set_target(logical_scroll);
+
+            if state.smooth_scroll.update() {
+                window.refresh();
+            }
+
+            state.smooth_scroll.current()
+        };
+
+        let mut start = self.find_index(-visual_scroll);
+
+        let mut end = self.find_index(-visual_scroll + viewport_height) + 1;
 
         start = start.saturating_sub(self.overscan);
 
@@ -207,7 +245,7 @@ impl Element for VirtualList {
 
         window.with_content_mask(Some(content_mask), |window| {
             for (mut item, ix) in items.into_iter().zip(visible.clone()) {
-                let y = self.offsets[ix] + scroll;
+                let y = self.offsets[ix] + visual_scroll;
 
                 let origin = bounds.origin + point(px(0.0), y);
 

@@ -182,6 +182,10 @@ path = "examples/learn/blur_showcase.rs"
 name = "smooth_scrolling"
 path = "examples/learn/smooth_scrolling.rs"
 
+[[example]]
+name = "virtual_list"
+path = "examples/learn/virtual_list.rs"
+
 # ============================================================================
 # Bench Examples - Performance benchmarks
 # ============================================================================
