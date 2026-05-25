@@ -855,6 +855,38 @@ impl GradientStop {
     }
 }
 
+/// A linear color stop for text gradients.
+///
+/// Similar to GradientStop but uses "percentage" terminology for text gradients.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[repr(C)]
+pub struct LinearColorStop {
+    /// The color of the color stop.
+    pub color: Hsla,
+    /// The percentage of the gradient, in the range 0.0 to 1.0.
+    pub percentage: f32,
+}
+
+/// Creates a new linear color stop.
+///
+/// The percentage of the gradient, in the range 0.0 to 1.0.
+pub fn linear_color_stop(color: impl Into<Hsla>, percentage: f32) -> LinearColorStop {
+    LinearColorStop {
+        color: color.into(),
+        percentage,
+    }
+}
+
+impl LinearColorStop {
+    /// Returns a new color stop with the same color, but with a modified alpha value.
+    pub fn opacity(&self, factor: f32) -> Self {
+        Self {
+            percentage: self.percentage,
+            color: self.color.opacity(factor),
+        }
+    }
+}
+
 impl std::hash::Hash for LinearColorStop {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.color.hash(state);

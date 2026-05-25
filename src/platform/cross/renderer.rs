@@ -4,9 +4,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use crate::{
-    AtlasTextureId, AtlasTile, DevicePixels, GpuSpecs, Hsla, LinearColorStop, MonochromeSprite,
+    AtlasTextureId, AtlasTile, DevicePixels, GpuSpecs, GradientStop, LinearColorStop, MonochromeSprite,
     PlatformAtlas, Pixels, PrimitiveBatch, Quad, ScaledPixels, Scene, TransformationMatrix,
-    color, geometry
+    color, geometry,
     platform::cross::{
         atlas::WgpuAtlas,
         render_context::{WgpuContext, ensure_buffer_size},
@@ -73,6 +73,21 @@ impl color::GradientStop {
         },
         wgpu::VertexAttribute {
             offset: std::mem::offset_of!(GradientStop, position) as wgpu::BufferAddress,
+            shader_location: 1,
+            format: wgpu::VertexFormat::Float32,
+        },
+    ];
+}
+
+impl color::LinearColorStop {
+    const VERTEX_ATTRIBUTES: &'static [wgpu::VertexAttribute; 2] = &[
+        wgpu::VertexAttribute {
+            offset: std::mem::offset_of!(LinearColorStop, color) as wgpu::BufferAddress,
+            shader_location: 0,
+            format: wgpu::VertexFormat::Float32x4,
+        },
+        wgpu::VertexAttribute {
+            offset: std::mem::offset_of!(LinearColorStop, percentage) as wgpu::BufferAddress,
             shader_location: 1,
             format: wgpu::VertexFormat::Float32,
         },
