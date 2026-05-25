@@ -251,8 +251,10 @@ fn vs_mono_sprite(@builtin(vertex_index) vertex_id: u32, @builtin(instance_index
     out.tile_position = to_tile_position(unit_vertex, sprite.tile);
 
     // Compute pixel position for gradient calculation
+    // Use the actual pixel position of this glyph
     let pixel_position = unit_vertex * vec2<f32>(sprite.bounds.size) + sprite.bounds.origin;
-    out.color = text_gradient_color(sprite.text_color, pixel_position, sprite.bounds);
+    // Use content_mask as the gradient bounds so gradients work across all glyphs in the container
+    out.color = text_gradient_color(sprite.text_color, pixel_position, sprite.content_mask);
 
     out.clip_distances = distance_from_clip_rect_transformed(unit_vertex, sprite.bounds, sprite.content_mask, sprite.transformation);
     return out;
