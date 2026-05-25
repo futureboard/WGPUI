@@ -855,10 +855,10 @@ impl GradientStop {
     }
 }
 
-impl std::hash::Hash for LinearColorStop {
+impl std::hash::Hash for GradientStop {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.color.hash(state);
-        state.write_u32(u32::from_be_bytes(self.percentage.to_be_bytes()));
+        state.write_u32(u32::from_be_bytes(self.position.to_be_bytes()));
     }
 }
 
@@ -931,7 +931,7 @@ pub struct TextColor {
     pub(crate) color_space: ColorSpace,
     pub(crate) solid: Hsla,
     pub(crate) gradient_angle_or_reserved: f32,
-    pub(crate) colors: [LinearColorStop; 2],
+    pub(crate) colors: [GradientStop; 2],
     /// Padding for alignment for repr(C) layout.
     pub(crate) pad: u32,
 }
@@ -972,7 +972,7 @@ impl Default for TextColor {
             solid: Hsla::default(),
             color_space: ColorSpace::default(),
             gradient_angle_or_reserved: 0.0,
-            colors: [LinearColorStop::default(), LinearColorStop::default()],
+            colors: [GradientStop::default(), GradientStop::default()],
             pad: 0,
         }
     }
@@ -985,7 +985,7 @@ pub fn solid_text_color(color: impl Into<Hsla>) -> TextColor {
         solid: color.into(),
         color_space: ColorSpace::default(),
         gradient_angle_or_reserved: 0.0,
-        colors: [LinearColorStop::default(), LinearColorStop::default()],
+        colors: [GradientStop::default(), GradientStop::default()],
         pad: 0,
     }
 }
@@ -999,13 +999,11 @@ pub fn solid_text_color(color: impl Into<Hsla>) -> TextColor {
 /// <https://developer.mozilla.org/en-US/docs/Web/CSS/gradient/linear-gradient>
 pub fn text_gradient(
     angle: f32,
-    from: impl Into<LinearColorStop>,
-    to: impl Into<LinearColorStop>,
+    from: impl Into<GradientStop>,
+    to: impl Into<GradientStop>,
 ) -> TextColor {
     let from_stop = from.into();
     let to_stop = to.into();
-    println!("[DEBUG] text_gradient: angle={}, from=(color={:?}, pct={}), to=(color={:?}, pct={})",
-        angle, from_stop.color, from_stop.percentage, to_stop.color, to_stop.percentage);
     TextColor {
         tag: TextColorTag::LinearGradient,
         solid: Hsla::default(),
@@ -1034,8 +1032,8 @@ pub fn text_progress_gradient(
     let progress = progress.clamp(0.0, 1.0);
     text_gradient(
         90.0, // Horizontal
-        linear_color_stop(active_color, 0.0),
-        linear_color_stop(inactive_color, progress),
+        gradient_color_stop(active_color, 0.0),
+        gradient_color_stop(inactive_color, progress),
     )
 }
 
