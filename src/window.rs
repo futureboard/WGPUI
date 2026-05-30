@@ -280,24 +280,20 @@ impl Drop for ElementArenaScope {
 
 /// Returned when the element arena has been used and so must be cleared before the next draw.
 #[must_use]
-pub struct ArenaClearNeeded {
-    arena: *const RefCell<Arena>,
+pub struct ArenaClearNeeded<'app> {
+    arena: &'app RefCell<Arena>,
 }
 
-impl ArenaClearNeeded {
+impl<'app> ArenaClearNeeded<'app> {
     /// Create a new ArenaClearNeeded that will clear the given arena.
-    pub(crate) fn new(arena: &RefCell<Arena>) -> Self {
-        Self {
-            arena: arena as *const RefCell<Arena>,
-        }
+    pub(crate) fn new(arena: &'app RefCell<Arena>) -> Self {
+        Self { arena }
     }
 
     /// Clear the element arena.
     pub fn clear(self) {
-        // SAFETY: The arena pointer is valid because ArenaClearNeeded is created
-        // at the end of draw() and must be cleared before the next draw.
-        let arena_cell = unsafe { &*self.arena };
-        arena_cell.borrow_mut().clear();
+        // SAFETY: The arena reference must be valid and cleared before the next draw.
+        self.arena.borrow_mut().clear();
     }
 }
 
@@ -2148,7 +2144,7 @@ impl Window {
     /// Produces a new frame and assigns it to `rendered_frame`. To actually show
     /// the contents of the new [`Scene`], use [`Self::present`].
     #[profiling::function]
-    pub fn draw(&mut self, cx: &mut App) -> ArenaClearNeeded {
+    pub fn draw<'app>(&mut self, cx: &'app mut App) -> ArenaClearNeeded<'app> {
         // Set up the per-App arena for element allocation during this draw.
         // This ensures that multiple test Apps have isolated arenas.
         let _arena_scope = ElementArenaScope::enter(&cx.element_arena);
