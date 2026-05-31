@@ -11,7 +11,7 @@ struct Assets {
 }
 
 impl AssetSource for Assets {
-    fn load(&self, path: &str) -> Result<Option<std::borrow::Cow<'static, [u8]>>> {
+    fn load(&self, path: &str) -> Result<Option<std::borrow::Cow<'_, [u8]>>> {
         fs::read(self.base.join(path))
             .map(|data| Some(std::borrow::Cow::Owned(data)))
             .map_err(|e| e.into())

@@ -22,7 +22,7 @@ use gpui::{
 struct Assets {}
 
 impl AssetSource for Assets {
-    fn load(&self, path: &str) -> Result<Option<std::borrow::Cow<'static, [u8]>>> {
+    fn load(&self, path: &str) -> Result<Option<std::borrow::Cow<'_, [u8]>>> {
         std::fs::read(path)
             .map(Into::into)
             .map_err(Into::into)
