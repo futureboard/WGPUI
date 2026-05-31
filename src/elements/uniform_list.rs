@@ -402,6 +402,8 @@ impl Element for UniformList {
                         shared_scroll_offset.borrow_mut().x = Pixels::ZERO;
                     }
 
+                    let applied_deferred_scroll = shared_scroll_to_item.is_some();
+
                     if let Some(DeferredScrollToItem {
                         mut item_index,
                         mut strategy,
@@ -469,7 +471,11 @@ impl Element for UniformList {
                             .smooth_scroll
                             .set_target(logical_scroll_offset.y);
 
-                        if scroll_state.smooth_scroll.update() {
+                        if applied_deferred_scroll {
+                            scroll_state.smooth_scroll.visual_offset = logical_scroll_offset.y;
+                            scroll_state.smooth_scroll.target_offset = logical_scroll_offset.y;
+                            scroll_state.smooth_scroll.animating = false;
+                        } else if scroll_state.smooth_scroll.update() {
                             window.refresh();
                         }
 

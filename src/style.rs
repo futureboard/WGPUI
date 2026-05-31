@@ -9,7 +9,7 @@ use crate::{
     CornersRefinement, CursorStyle, DefiniteLength, DevicePixels, Edges, EdgesRefinement, Font,
     FontFallbacks, FontFeatures, FontStyle, FontWeight, GridLocation, Hsla, Length, Pixels, Point,
     PointRefinement, Rgba, SharedString, Size, SizeRefinement, Styled, TextColor, TextRun, Window,
-    black, phi, point, quad, rems, size, solid_text_color, transparent_black, transparent_white
+    black, phi, point, quad, rems, size, solid_text_color, transparent_black, transparent_white,
 };
 use collections::HashSet;
 use refineable::Refineable;
@@ -930,12 +930,12 @@ impl HighlightStyle {
         Self {
             color: other
                 .color
-                .map(|other_color| {
-                    if let Some(_color) = self.color {
-                        other_color
-                    } else {
-                        other_color
+                .map(|other_color| match self.color {
+                    Some(color) if color.is_solid() && other_color.is_solid() => {
+                        solid_text_color(color.solid.blend(other_color.solid))
                     }
+                    Some(color) => color,
+                    None => other_color,
                 })
                 .or(self.color),
             font_weight: other.font_weight.or(self.font_weight),
